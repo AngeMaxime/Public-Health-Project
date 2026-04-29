@@ -77,9 +77,175 @@ o BMI and Diabetes
 
 o Alcohol Year and Relationship Status
 
-# Load necessary packages
+# 1. Load necessary packages
+
+```{r}
+# Install if not already installed
+if (!require("pacman")) install.packages("pacman")
+
+# Load all packages
+pacman::p_load(
+  tidyverse,   # data manipulation + ggplot2
+  patchwork,   # combining plots
+  scales       # axis formatting
+)
+```
 
 ```{r Packages}
-
+library(tidyverse)
+library(patchwork)
+library(scales)
 ```
+
+# 2. Load the Data and Present the Data Dictionnary
+
+```{r}
+# Source: CDC NHANES via HackBio public datasets repository
+# Each row = one survey participant (~5,000 sampled per year)
+
+# ── Load the data ──────────────
+nhanes_raw <- read.csv(
+  "https://raw.githubusercontent.com/HackBio-Internship/public_datasets/main/R/nhanes.csv",
+  stringsAsFactors = FALSE   # keep character columns as strings, not factors
+)
+
+# ── Create the data dictionary as a data frame ──────────────
+nhanes_dict <- data.frame(
+  Column = c(
+    "id", "Gender", "Age", "Race", "Education",
+    "MaritalStatus", "RelationshipStatus", "Insured", "Income",
+    "Poverty", "HomeRooms", "HomeOwn", "Work", "Weight", "Height",
+    "BMI", "Pulse", "BPSys", "BPDia", "Testosterone",
+    "HDLChol", "TotChol", "Diabetes", "DiabetesAge",
+    "nPregnancies", "nBabies", "SleepHrsNight", "PhysActive",
+    "PhysActiveDays", "AlcoholDay", "AlcoholYear", "SmokingStatus"
+  ),
+  Type = c(
+    "integer",   "character", "integer",   "character", "character",
+    "character", "character", "character", "numeric",
+    "numeric",   "integer",   "character", "character", "numeric",  "numeric",
+    "numeric",   "integer",   "integer",   "integer",   "numeric",
+    "numeric",   "numeric",   "character", "integer",
+    "integer",   "integer",   "integer",   "character",
+    "integer",   "numeric",   "integer",   "character"
+  ),
+  Label = c(
+    "Unique participant ID",
+    "Biological sex of participant (male / female)",
+    "Age in years at screening",
+    "Race / ethnicity of participant",
+    "Highest education level attained",
+    "Current marital status",
+    "Relationship status (Committed / Single)",
+    "Whether participant has health insurance (Yes / No)",
+    "Annual gross household income in USD",
+    "Ratio of household income to poverty threshold",
+    "Number of rooms in the participant's home",
+    "Home ownership status (Own / Rent / Other)",
+    "Current employment status",
+    "Body weight in kilograms",
+    "Standing height in centimetres",
+    "Body Mass Index — weight(kg) / height(m)²",
+    "60-second resting pulse rate (beats per minute)",
+    "Systolic blood pressure (mmHg)",
+    "Diastolic blood pressure (mmHg)",
+    "Serum testosterone level (ng/dL)",
+    "HDL (good) cholesterol level (mmol/L)",
+    "Total cholesterol level (mmol/L)",
+    "Whether participant was diagnosed with diabetes (Yes / No)",
+    "Age at diabetes diagnosis (years)",
+    "Total number of pregnancies",
+    "Number of live births",
+    "Average hours of sleep per night",
+    "Whether participant is physically active (Yes / No)",
+    "Number of days per week with physical activity",
+    "Average number of alcoholic drinks on drinking days",
+    "Number of days per year alcohol was consumed",
+    "Smoking history (Never / Former / Current)"
+  ),
+  stringsAsFactors = FALSE
+)
+
+# ── View the full dictionary ─────────────────────────────────
+print(nhanes_dict)
+
+# ── Or view it as a clean table in RStudio Viewer ───────────
+View(nhanes_dict)
+
+# ── Quick lookup function — get label for any column name ───
+get_label <- function(col_name) {
+  match <- nhanes_dict$Label[nhanes_dict$Column == col_name]
+  if (length(match) == 0) return("Column not found")
+  return(match)
+}
+
+# Example usage:
+get_label("BMI")          # "Body Mass Index — weight(kg) / height(m)²"
+get_label("AlcoholYear")  # "Number of days per year alcohol was consumed"
+get_label("BPDia")        # "Diastolic blood pressure (mmHg)"
+get_label("Work")
+```
+# 3. Quick Overview of the data
+
+```{r}
+# Keep a working copy , never modify the raw object directly
+nhanes <- nhanes_raw
+
+# ── Structure of the dataset ─────────────────────────────────
+# Shows column names, data types, and first values
+str(nhanes)
+
+# ── Name of all Variables ─────────────────────────────────
+names(nhanes)
+
+# ── Unique values in key categorical columns ─────────────────
+# Useful to spot typos, unexpected categories, or hidden NAs
+unique(nhanes$Gender)
+unique(nhanes$Race)
+unique(nhanes$Education)
+unique(nhanes$MaritalStatus)
+unique(nhanes$RelationshipStatus)
+unique(nhanes$Diabetes)
+unique(nhanes$SmokingStatus)
+unique(nhanes$Work)
+unique(nhanes$HomeOwn)
+
+# ── First and last rows ──────────────────────────────────────
+head(nhanes)          # first 6 rows
+tail(nhanes, n = 10)  # last 10 rows
+
+# ── Dimensions ───────────────────────────────────────────────
+# How many participants (rows) and variables (columns)?
+dim(nhanes)
+
+# ── Detailed column-by-column overview ───────────────────────
+# Shows data type and first values for every column
+glimpse(nhanes)
+
+# ── Statistical summary ──────────────────────────────────────
+# Numeric columns → min, Q1, median, mean, Q3, max, NA count
+# Character columns → length and class
+summary(nhanes)
+
+# ── Missing values per column ────────────────────────────────
+# Shows exact NA count and percentage for each column
+
+colSums(is.na(nhanes_raw))
+
+na_count <- colSums(is.na(nhanes))
+na_pct   <- round(na_count / nrow(nhanes) * 100, 2)
+
+na_summary <- data.frame(
+  Column       = names(na_count),
+  Missing      = na_count,
+  Percentage   = paste0(na_pct, "%")
+)
+
+na_summary
+
+# Show only columns that actually have missing values
+na_summary[na_summary$Missing > 0, ]
+```
+
+
 
