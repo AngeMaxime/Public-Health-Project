@@ -3,15 +3,15 @@ title: "NHANES Public Health Data Analysis"
 author: "Ange Maxime TCHOUTANG"
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    number_sections: true
   html_document:
     toc: true
     toc_float: true
     toc_depth: 3
     theme: flatly
     highlight: tango
-    number_sections: true
-  pdf_document:
-    toc: true
     number_sections: true
 editor_options: 
   markdown: 
@@ -246,6 +246,1115 @@ na_summary
 # Show only columns that actually have missing values
 na_summary[na_summary$Missing > 0, ]
 ```
+
+Based on the `na_summary` output from our code, here is what we can retain:
+
+
+**Columns with NO missing values** — complete data for all participants:
+- `id`, `Gender`, `Age`, `Race`
+- These columns are **reliable for all analyses**
+
+---
+
+**Columns with MODERATE missingness** — present but incomplete:
+- `HomeRoom`, `HomeOwn`: Missing because some `Participants refused to answer`
+- `Education`, `MaritalStatus`, `RelationshipStatus`, `Work`,  → missing for **younger participants** (children don't have jobs or marital status)
+- `BMI`, `Weight`, `Height`, `Pulse`, `BPSys`, `BPDia` → missing because some **physical exams were not completed**
+- `Income`, `Poverty` → missing because some participants **refused to answer**
+- `HDLChol`, `TotChol`, `Testosterone` → missing because **lab tests were not done** for everyone
+
+---
+
+**Columns with HIGH missingness** — structurally incomplete:
+- `DiabetesAge` → only filled when `Diabetes == "Yes"`, so **~90% are NA** naturally
+- `nPregnancies`, `nBabies` → only applicable to **female participants**
+- `AlcoholDay`, `AlcoholYear` → only filled for participants who **reported drinking**
+- `PhysActiveDays` → only filled for participants who said **Yes to PhysActive**
+
+---
+
+**Key conclusions to retain:**
+
+> **1.** Most NAs are **not random errors** — they are structurally expected because certain questions only apply to subgroups (females, diabetics, drinkers, etc.)
+
+> **2.** Replacing ALL NAs with `0` makes sense for columns like `AlcoholYear` (non-drinkers genuinely consumed 0 days) and `nBabies` (males had 0 births), but would be **misleading** for columns like `Income` or `BPDia`
+
+> **3.** For statistical tests like our **t-tests**, R's built-in `na.rm = TRUE` argument handles remaining NAs gracefully — so we don't need to delete entire rows
+
+> **4.** Deleting all rows with ANY NA would **destroy most of the dataset**, since almost every participant is missing at least one value
+
+# 4 Treatment of Missing data
+
+Let us solve each missing value per columns 
+
+##1. HomeRooms and HomeOwn
+
+28 Participants were enable to give an answer. We have 28 missing values fpr both `HoneRooms` and `HomeOwn`. We will replace missing values for these two columns by `No answer`
+
+```{r}
+unique(nhanes$HomeRooms)
+# show lines where we have only misisng values related to these two columns
+missing_count_1 <- data.frame(
+  Variable = c("HomeRooms", "HomeOwn"),
+  Missing  = c(sum(is.na(nhanes$HomeRooms)),
+               sum(is.na(nhanes$HomeOwn)))
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+  )
+
+missing_count_1
+
+nhanes %>%
+  filter(is.na(HomeRooms)
+         
+# For realability, we created a function
+         
+filter_na <- function(data, column) {
+  data %>%
+    filter(is.na({{ column }}))
+}
+
+# Combinaison of Both 
+filter_na(nhanes, HomeRooms)
+
+nhanes %>%
+  filter(is.na(HomeRooms) | is.na(HomeOwn))
+
+         
+# Transform the variable type for this two data in factor 
+
+nhanes<- nhanes %>%
+  mutate(
+    HomeRooms= factor(HomeRooms),
+    HomeOwn = factor(HomeOwn)
+  )
+```
+
+```{r}
+
+# Remplacement of missing values by `No asnwer`
+
+nhanes <- nhanes %>%
+  mutate(across(c(HomeRooms, HomeOwn),
+                ~forcats::fct_explicit_na(., na_level = "Unknown")))
+
+#or
+
+nhanes <- nhanes %>%
+  mutate(across(c(HomeRooms, HomeOwn),
+                ~replace_na(as.character(.), "Unknown")))
+
+
+nhanes <- nhanes %>%
+  mutate(
+    HomeRooms = replace_na(HomeRooms, "Unknown"),
+    HomeOwn = replace_na(HomeOwn, "Unknown")
+  ) # don't work because HomeRooms is a factor variable. I am trying to include new factor which doesn't exist before.
+
+unique(nhanes$HomeOwn)
+
+summary(nhanes)
+
+str(nhanes$HomeRooms)
+
+
+nhanes <- nhanes %>%
+  mutate(across(c(HomeRooms, HomeOwn), ~replace_na(., "Unknown")))
+
+```
+
+##2.  Education, MaritalStatus, RelationshipStatus and Work
+
+We can see that we have missing values for **younger participants** (children don't have jobs or marital status)
+
+We can manage missing values by including the `no_asnwer` statement
+
+```{r}
+
+# visualisation of the strcuture of each variables
+str(nhanes$Education)
+str(nhanes$MaritalStatus)
+str(nhanes$RelationshipStatus)
+str(nhanes$Work)
+
+unique(nhanes$Education)
+unique(nhanes$MaritalStatus)
+unique(nhanes$RelationshipStatus)
+unique(nhanes$Work)
+
+# coount of missing values
+
+missing_count_2 <- data.frame(
+  Variable = c("Education", "MaritalStatus", "RelationshipStatus", "work"),
+  Missing  = c(sum(is.na(nhanes$Education)),
+               sum(is.na(nhanes$MaritalStatus)),
+               sum(is.na(nhanes$RelationshipStatus)),
+               sum(is.na(nhanes$Work)))
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+  )
+
+missing_count_2
+
+# determination of each rows with missing values for the variables Education, Marrital status, Relationship status and work
+
+## Education
+nhanes %>%
+  filter(is.na(Education) # Majority of young individuals doesn't give an answer to this question
+
+#or
+
+filter_na(nhanes, Education)
+
+## Marrital Status
+
+nhanes %>%
+  filter(is.na(MaritalStatus) # Majority of young individuals doesn't give an answer to this question
+
+#or
+
+filter_na(nhanes, MaritalStatus)
+
+## Relationship Status
+
+nhanes %>%
+  filter(is.na(RelationshipStatus) # Majority of young individuals doesn't give an answer to this question
+
+#or
+
+filter_na(nhanes, RelationshipStatus)
+
+##Work
+
+nhanes %>%
+  filter(is.na(Work) # Majority of young individuals doesn't give an answer to this question
+
+#or
+
+filter_na(nhanes, Work)
+
+##  Combinaison of both
+
+nhanes %>%
+  filter(is.na(Education) | is.na(MaritalStatus) | is.na(RelationshipStatus) | is.na(Work))
+
+```
+
+```{r}
+# Remplacement of missing values by `No asnwer`
+
+nhanes <- nhanes %>%
+  mutate(across(c(Education, MaritalStatus, RelationshipStatus, Work),
+                ~forcats::fct_explicit_na(., na_level = "Unknown")))
+
+# verification
+
+unique(nhanes$Education)
+unique(nhanes$MaritalStatus)
+unique(nhanes$RelationshipStatus)
+unique(nhanes$Work)
+
+```
+
+```{r}
+# Transform the variable type for this two data in factor 
+
+nhanes<- nhanes %>%
+  mutate(
+    Education = factor(Education),
+    MaritalStatus = factor(MaritalStatus),
+    RelationshipStatus = factor(RelationshipStatus),
+    Work = factor(Work)
+  )
+
+```
+
+
+##3. BMI, Weight, Height, Pulse, BPSys, BPDia
+
+Here, we have missing because some physical exams were not completed
+
+```{r}
+# visualisation of the strcuture of each variables
+str(nhanes$BMI)
+str(nhanes$Weight)
+str(nhanes$Height)
+str(nhanes$Pulse)
+str(nhanes$BPSys)
+str(nhanes$BPDia)
+
+summary(nhanes$BMI)
+summary(nhanes$Weight)
+summary(nhanes$Height)
+summary(nhanes$Pulse)
+Summary(nhanes$BPSys)
+summary(nhanes$BPDia)
+
+# coount of missing values
+
+missing_count_3 <- data.frame(
+  Variable = c("BMI", "Weight", "Height", "Pulse", "BPSys", "BPDia"),
+  Missing  = c(sum(is.na(nhanes$BMI)),
+               sum(is.na(nhanes$Weight)),
+               sum(is.na(nhanes$Height)),
+               sum(is.na(nhanes$Pulse)),
+               sum(is.na(nhanes$BPSys)),
+               sum(is.na(nhanes$BPDia)))
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+  )
+
+missing_count_3
+
+# determination of each rows with missing values for the variables BMI, Weight, Height, Pulse, BPSys, BPDia
+
+## BMI
+nhanes %>%
+  select(id, Gender, Age, BMI, Weight, Height, Pulse, BPSys, BPDia) %>% 
+  filter(is.na(BMI)) # Majority of young individuals doesn't have this measures
+#or
+
+filter_na(nhanes, BMI)
+
+## Weight
+
+nhanes %>%
+  select(id, Gender, Age, BMI, Weight, Height, Pulse, BPSys, BPDia) %>% 
+  filter(is.na(Weight))
+
+#or
+
+filter_na(nhanes, Weight)
+
+## Height
+
+nhanes %>%
+  select(id, Gender, Age, BMI, Weight, Height, Pulse, BPSys, BPDia) %>% 
+  filter(is.na(Height))
+
+#or
+
+filter_na(nhanes, Height)
+
+##Pulse
+
+nhanes %>%
+  select(id, Gender, Age, BMI, Weight, Height, Pulse, BPSys, BPDia) %>% 
+  filter(is.na(Pulse)) # Majority of young individuals doesn't give an answer to this question
+
+#or
+
+filter_na(nhanes, Pulse)
+
+## BPSys
+
+nhanes %>%
+  select(id, Gender, Age, BMI, Weight, Height, Pulse, BPSys, BPDia) %>% 
+  filter(is.na(BPSys))
+
+#or
+
+filter_na(nhanes, BPSys)
+
+## BPDia
+
+nhanes %>%
+  select(id, Gender, Age, BMI, Weight, Height, Pulse, BPSys, BPDia) %>% 
+  filter(is.na(BPDia))
+
+# OR
+
+filter_na(nhanes, BPDia)
+
+##  Combinaison of both
+
+nhanes %>%
+  filter(is.na(BMI) | is.na(Weight) | is.na(Height) | is.na(Pulse) | is.na(BPDia) | is.na(BPSys)) # or
+
+nhanes %>%
+  filter(is.na(BMI) & is.na(Weight) & is.na(Height) & is.na(Pulse) & is.na(BPDia) & is.na(BPSys))
+
+nhanes %>%
+  filter(is.na(Pulse) & is.na(BPDia) & is.na(BPSys))
+```
+
+
+We can retain that
+
+> **1.** Most NAs for these variables are **not random errors**: children between 0 to 1 years old don't have reuslts or `Pulse`, `BPDia` and `BPSys`
+To resolve missinsg values, we will replace NAs by 0
+
+> **2.** For `BMI`, `Height` and `Weight`, we notice the same phenomena. Majprity of participants without `Height` and `BMI` values are young children. We will replace missing values by zero. 
+
+```{r}
+
+# Remplacement of missing values by `0`
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(BMI, Height, Weight, Pulse, BPDia, BPSys),
+    ~ifelse(is.na(.), 0, .) # replace all misisng values by zero
+  )) %>% 
+  ungroup()
+
+# it was even better to alloow misising values and don't considered the lines with NAs during statistical analysis.
+
+str(nhanes$BMI)
+str(nhanes$Weight)
+str(nhanes$Height)
+str(nhanes$Pulse)
+str(nhanes$BPSys)
+str(nhanes$BPDia)
+
+summary(nhanes$BMI)
+summary(nhanes$Weight)
+summary(nhanes$Height)
+summary(nhanes$Pulse)
+Summary(nhanes$BPSys)
+summary(nhanes$BPDia)
+```
+##4.Income and Poverty
+
+Here, we can conclude that we have missing values because participants refused to give an answer. Poverty depend on the income.If someone refused to give his Income, we can conclude on his social life. Also, young children and some adults don't have an Income since they are not working. The income value depend also on the age of the participants. Yound and adults doesn't have an income.  
+
+```{r}
+# visualisation of the structure of each variables
+
+summary(nhanes$Income)
+summary(nhanes$Poverty)
+
+class(nhanes$Income)
+
+# count of missing values
+
+missing_count_4 <- data.frame(
+  Variable = c("Income", "Poverty"),
+  Missing  = c(sum(is.na(nhanes$Income)),
+               sum(is.na(nhanes$Poverty)))
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+)
+
+missing_count_4
+
+# determination of each rows with missing values for the variables Income and Poverty 
+
+## Income
+
+nhanes %>%
+  select(id, Gender, Age, Income, Poverty) %>% 
+  filter(is.na(Income)) # Majority of young individuals and old peoples doesn't have this measures
+#or
+
+filter_na(nhanes, Income)
+
+## Poverty
+
+
+nhanes %>%
+  select(id, Gender, Age, Income, Poverty) %>% 
+  filter(is.na(Poverty))
+
+#or
+
+filter_na(nhanes, Poverty)
+
+##  Combinaison of both
+
+nhanes %>%
+  filter(is.na(Income) | is.na(Poverty)) # or
+
+nhanes %>%
+  filter(is.na(Income) & is.na(Poverty)) # both
+```
+
+> We will replace missing values here by zero
+
+```{r}
+# Remplacement of missing values by `0`
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(Income, Poverty),
+    ~ifelse(is.na(.), 0, .) # replace all misisng values by zero. It can be misleasing to replace income andpoverty by zero, since we don't know if the persone has a job or not. But based on the agee of the participant, we conlued to replace Nas by zero.
+  )) %>% 
+  ungroup()
+
+str(nhanes$Income)
+str(nhanes$Poverty)
+
+summary(nhanes$Income)
+summary(nhanes$Poverty)
+```
+
+##5. HDLChol, TotChol, Testosterone
+
+Here, we have missing values because **lab tests were not done** for everyone. Also, `Testoterone` was measured only for men, not for women, but some Men don't have this value also.  
+
+we have the same number of missing values for `HDL` and `TotChol` (Na = 775), prove that these parameters were not measured at the laboratory due to certain raisons (low Volume of sample available, incapacity to do the test). Majority of participants without `HDL` and `Totchol` levels, don't have also results for Testosterone. why???
+
+```{r}
+# visualisation of the structure of each variables
+
+summary(nhanes$HDLChol)
+summary(nhanes$TotChol)
+summary(nhanes$Testosterone)
+
+
+# count of missing values
+
+missing_count_5 <- data.frame(
+  Variable = c("HDLChol", "TotChol", "Testosterone"),
+  Missing  = c(sum(is.na(nhanes$HDLChol)),
+               sum(is.na(nhanes$TotChol)),
+               sum(is.na(nhanes$Testosterone)))
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+)
+
+missing_count_5
+
+# determination of each rows with missing values for the variables Income and Poverty 
+
+## HDLChol
+
+nhanes %>%
+  select(id, Gender, Age, HDLChol, TotChol, Testosterone) %>% 
+  filter(is.na(HDLChol)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, HDLChol)
+
+## TotChol
+
+nhanes %>%
+  select(id, Gender, Age, HDLChol, TotChol, Testosterone) %>% 
+  filter(is.na(TotChol)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, TotChol)
+
+
+##  Testosterone
+
+nhanes %>%
+  select(id, Gender, Age, HDLChol, TotChol, Testosterone) %>% 
+  filter(is.na(Testosterone)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, Testosterone)
+
+##  Combination of both
+
+nhanes %>%
+  filter(is.na(HDLChol) | is.na(TotChol) | is.na(Testosterone)) # or
+
+nhanes %>%
+  filter(is.na(HDLChol) & is.na(TotChol) & is.na(Testosterone)) # both
+```
+
+```{r}
+# Remplacement of missing values by `0`
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(HDLChol, TotChol, Testosterone),
+    ~ifelse(is.na(.),  median(., na.rm = TRUE), .)  # Here, we replace NAs by the median. buut it is better to left NAs value and ignore them duirng statsitical analysis. 
+  )) %>% 
+  ungroup()
+
+str(nhanes$HDLChol)
+str(nhanes$TotChol)
+str(nhanes$Testosterone)
+
+summary(nhanes$HDLChol)
+summary(nhanes$TotChol)
+summary(nhanes$Testosterone)
+```
+##6. Diabetes and DiabetesAge
+
+We can see that `DiabetesAge` was given when `Diabetes == "Yes"`. We will replace missing values by a `zero`
+in  this dataser, we have mor eyounger individuals compared to olders
+
+```{r}
+# visualisation of the structure of each variables
+
+summary(nhanes$Diabetes)
+str(nhanes$Diabetes)
+unique(nhanes$Diabetes)
+summary(nhanes$DiabetesAge)
+
+nhanes %>% 
+  count(Age, name = "nombre_participants") %>% 
+  arrange(Age) 
+
+nhanes %>% 
+  count(Diabetes, name = "nombre_participants")
+
+nhanes %>% 
+  count(DiabetesAge, name = "nombre_participants")
+
+# count of missing values
+
+missing_count_6 <- data.frame(
+  Variable = c("Diabetes", "DiabetesAge"),
+  Missing  = c(sum(is.na(nhanes$Diabetes)),
+               sum(is.na(nhanes$DiabetesAge)))
+              
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+)
+
+missing_count_6
+
+# determination of each rows with missing values for the variables Income and Poverty 
+
+## Diabetes
+
+nhanes %>%
+  select(id, Gender, Age, Diabetes, DiabetesAge) %>% 
+  filter(is.na(Diabetes)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, Diabetes)
+
+## Diabetes
+
+nhanes %>%
+  select(id, Gender, Age, Diabetes, DiabetesAge) %>% 
+  filter(is.na(DiabetesAge)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, DiabetesAge)
+
+##  Combination of both
+
+nhanes %>%
+  filter(is.na(Diabetes) | is.na(DiabetesAge)) # or
+
+nhanes %>%
+  filter(is.na(Diabetes) & is.na(DiabetesAge)) # both
+```
+
+```{r}
+# Replacement of missing values for Diabetes by no_answer
+
+nhanes <- nhanes %>%
+  mutate(across(c(Diabetes),
+                ~forcats::fct_explicit_na(., na_level = "Unknown")))
+
+# Replacement of missing Values for DiabetesAge by zero
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(DiabetesAge),
+    ~ifelse(is.na(.),  0, .)  # Here, we replace NAs by 0.  but it is better to left NAs value and ignore them during statistical analysis. 
+  )) %>% 
+  ungroup()
+
+str(nhanes$DiabetesAge)
+str(nhanes$Diabetes)
+
+
+summary(nhanes$Diabetes)
+summary(nhanes$DiabetesAge)
+```
+
+##7 nPregnancies and nBabies
+
+These are only applicable to **female participants**.  We will replace missing values by a zero answer
+
+```{r}
+# visualisation of the structure of each variables
+
+summary(nhanes$nPregnancies)
+summary(nhanes$nBabies)
+
+str(nhanes$nPregnancies)
+str(nhanes$nBabies)
+
+nhanes %>% 
+  count(nPregnancies, name = "nombre_participants") %>% 
+  arrange(nPregnancies) 
+
+nhanes %>% 
+  count(nBabies, name = "nombre_participants")
+
+nhanes %>% 
+  count(DiabetesAge, name = "nombre_participants")
+
+# count of missing values
+
+missing_count_7 <- data.frame(
+  Variable = c("nPregnancies", "nBabibies"),
+  Missing  = c(sum(is.na(nhanes$nPregnancies)),
+               sum(is.na(nhanes$nBabies)))
+              
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+)
+
+missing_count_7
+
+# determination of each rows with missing values for the variables Income and Poverty 
+
+## Diabetes
+
+nhanes %>%
+  select(id, Gender, Age, nPregnancies, nBabies) %>% 
+  filter(is.na(nPregnancies)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, nPregnancies)
+
+## Diabetes
+
+nhanes %>%
+  select(id, Gender, Age, nPregnancies, nBabies) %>% 
+  filter(is.na(nBabies)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, nBabies)
+
+##  Combination of both
+
+nhanes %>%
+  filter(is.na(nPregnancies) | is.na(nBabies)) # or
+
+nhanes %>%
+  select(id, Gender, Age, nPregnancies, nBabies) %>% 
+  filter(is.na(nPregnancies) | is.na(nBabies))# or
+
+nhanes %>%
+  select(id, Gender, Age, nPregnancies, nBabies) %>%
+  filter(is.na(nPregnancies) & is.na(nBabies)) # both
+```
+
+```{r}
+# Replacement of missing Values by zero
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(nPregnancies, nBabies),
+    ~ifelse(is.na(.),  0, .)  # Here, we replace NAs by 0.  b
+  )) %>% 
+  ungroup()
+
+summary(nhanes$nPregnancies)
+summary(nhanes$nBabies)
+```
+##8. AlcoholDay and AlcoholYear
+
+only filled for participants who **reported drinking**. We will replace missing values by a zero
+
+```{r}
+# visualisation of the structure of each variables
+
+summary(nhanes$AlcoholDay)
+summary(nhanes$AlcoholYear)
+
+nhanes %>% 
+  count(AlcoholDay, name = "nombre_participants") %>% 
+  arrange(AlcoholDay) 
+
+nhanes %>% 
+  count(AlcoholYear, name = "nombre_participants")
+
+# count of missing values
+
+missing_count_8 <- data.frame(
+  Variable = c("AlcoholDay", "AlcoholYear"),
+  Missing  = c(sum(is.na(nhanes$AlcoholDay)),
+               sum(is.na(nhanes$AlcoholYear)))
+              
+) %>%
+  mutate(
+    Present    = nrow(nhanes) - Missing,
+    Pct_Missing = round(Missing / nrow(nhanes) * 100, 2)
+)
+
+missing_count_8
+
+# determination of each rows with missing values for the variables Income and Poverty 
+
+## AlcoholDay
+
+nhanes %>%
+  select(id, Gender, Age, AlcoholDay, AlcoholYear) %>% 
+  filter(is.na(AlcoholDay)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, AlcoholDay)
+
+## AlcoholYear
+
+nhanes %>%
+  select(id, Gender, Age, AlcoholDay, AlcoholYear) %>% 
+  filter(is.na(AlcoholYear)) # Majority of young individuals and old peoples doesn't have this measures
+
+#or
+
+filter_na(nhanes, AlcoholYear)
+
+##  Combination of both
+
+nhanes %>%
+  filter(is.na(AlcoholDay) | is.na(AlcoholYear)) # or
+
+nhanes %>%
+  select(id, Gender, Age, AlcoholDay, AlcoholYear) %>% 
+  filter(is.na(AlcoholDay) | is.na(AlcoholYear))# or
+
+nhanes %>%
+  select(id, Gender, Age, AlcoholDay, AlcoholYear) %>%
+  filter(is.na(AlcoholDay) & is.na(AlcoholYear)) # both
+```
+
+```{r}
+# Replacement of missing Values by zero
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(AlcoholDay, AlcoholYear),
+    ~ifelse(is.na(.),  0, .)  # Here, we replace NAs by 0.  b
+  )) %>% 
+  ungroup()
+
+summary(nhanes$AlcoholDay)
+summary(nhanes$AlcoholYear)
+```
+
+
+##9. PhysActiveDays
+
+only filled for participants who said **Yes to PhysActive**. We will replace missing values by a zero 
+
+```{r}
+# visualisation of the structure of each variables
+
+summary(nhanes$PhysActiveDays)
+
+nhanes %>% 
+  count(PhysActiveDays, name = "nombre_participants") %>% 
+  arrange(PhysActiveDays)
+
+
+##  Combination of both
+
+nhanes %>%
+  filter(is.na(AlcoholDay) | is.na(AlcoholYear)) # or
+
+nhanes %>%
+  select(id, Gender, Age, AlcoholDay, AlcoholYear) %>% 
+  filter(is.na(AlcoholDay) | is.na(AlcoholYear))# or
+
+nhanes %>%
+  select(id, Gender, Age, AlcoholDay, AlcoholYear) %>%
+  filter(is.na(AlcoholDay) & is.na(AlcoholYear)) # both
+
+```
+
+```{r}
+# Replacement of missing Values by zero
+
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(PhysActiveDays),
+    ~ifelse(is.na(.),  0, .)  # Here, we replace NAs by 0.  b
+  )) %>% 
+  ungroup()
+
+# Replacement of missing values for Diabetes by no_answer
+
+nhanes <- nhanes %>%
+  mutate(across(c(PhysActive),
+                ~forcats::fct_explicit_na(., na_level = "Unknown")))
+
+summary(nhanes$PhysActiveDays)
+summary(nhanes$PhysActive)
+```
+
+```{r}
+print(colSums(is.na(nhanes)))
+
+# for sleeping status
+
+nhanes <- nhanes %>%
+  mutate(across(c(SmokingStatus),
+                ~forcats::fct_explicit_na(., na_level = "Unknown")))
+
+# for sleeping night
+nhanes <- nhanes %>% 
+  mutate(across(
+    c(SleepHrsNight),
+    ~ifelse(is.na(.),  0, .)  # Here, we replace NAs by 0.  b
+  )) %>% 
+  ungroup()
+```
+
+
+#3. creation of a new column 
+
+```{r}
+# Add a derived column: Weight in pounds
+nhanes <- nhanes %>%
+  mutate(Weight_lbs = Weight * 2.2)
+
+dim(nhanes)
+
+cat("\n=== CLEANED DATA — remaining NAs ===\n")
+print(colSums(is.na(nhanes)))
+```
+
+```{r}
+## save this dataset from R
+
+write.csv(nhanes, "nhanes_cleaned.csv", row.names = FALSE)
+```
+
+# 4. Let us now visualise the distribution of BMI, Weight, Weight in pounds (weight *2.2) and Age with an histogram.
+
+## 4.1. Distribution of BMI
+
+```{r}
+theme_nhanes <- theme_minimal(base_size = 13) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "grey50", size = 11),
+    panel.grid.minor = element_blank()
+  )
+
+h1 <- ggplot(nhanes, aes(x = BMI)) +
+  geom_histogram(bins = 40, 
+                 fill = "#2196F3", 
+                 color = "white", 
+                 alpha = 0.85) +
+  labs(title = "Distribution of BMI",
+       subtitle = "Body Mass Index (kg/m²)",
+       x = "BMI", y = "Count") +
+  theme_nhanes
+
+h1
+```
+
+## 4.2 Distribution of Weight
+
+```{r}
+h2 <- ggplot(nhanes, aes(x = Weight)) +
+  geom_histogram(bins = 40, 
+                 fill = "#4CAF50", 
+                 color = "white", 
+                 alpha = 0.85) +
+  labs(title = "Distribution of Weight",
+       subtitle = "Weight in kilograms",
+       x = "Weight (kg)", y = "Count") +
+  theme_nhanes
+
+h2
+```
+
+## 4.3 distribution of Weight in pounds (weight *2.2)
+
+```{r}
+h3 <- ggplot(nhanes, aes(x = Weight_lbs)) +
+  geom_histogram(bins = 40,
+                 fill = "#FF9800", 
+                 color = "white",
+                 alpha = 0.85) +
+  labs(title = "Distribution of Weight (lbs)",
+       subtitle = "Weight in pounds (kg × 2.2)",
+       x = "Weight (lbs)", y = "Count") +
+  theme_nhanes
+
+h3
+```
+
+
+## 4.4 Distribution of Age
+
+```{r}
+h4 <- ggplot(nhanes, aes(x = Age)) +
+  geom_histogram(bins = 40, fill = "#9C27B0", color = "white", alpha = 0.85) +
+  labs(title = "Distribution of Age",
+       subtitle = "Age in years",
+       x = "Age (years)", y = "Count") +
+  theme_nhanes
+
+h4
+```
+
+```{r}
+hist_combined <- (h1 | h2) / (h3 | h4) +
+  plot_annotation(
+    title   = "NHANES — Distribution of Key Variables",
+    caption = "Source: CDC NHANES Dataset",
+    theme   = theme(plot.title = element_text(face = "bold", size = 16))
+  )
+
+print(hist_combined)
+ggsave("nhanes_histograms.png", hist_combined, width = 12, height = 8, dpi = 150)
+cat("✔ Saved: nhanes_histograms.png\n")
+```
+# 5. Let us Determine the mean 60-second pulse rate for all participants in the data, the range of values for diastolic blood pressure in all participants and the variance and standard deviation for income among all participants?
+
+```{r}
+cat("\n=== DESCRIPTIVE STATISTICS ===\n")
+# 4a. Mean 60-second pulse rate
+mean_pulse <- mean(nhanes$Pulse, na.rm = TRUE) # No need to put na.rm = True, since we correct already misisng value sin our data
+cat(sprintf("Mean 60-sec pulse rate : %.5f\n", mean_pulse))
+
+# 4b. Range of diastolic blood pressure
+bp_min <- min(nhanes$BPDia, na.rm = TRUE) # No need to put na.rm = True, since we correct already misisng value sin our data
+bp_max <- max(nhanes$BPDia, na.rm = TRUE) # No need to put na.rm = True, since we correct already misisng value sin our data
+cat(sprintf("Diastolic BP range     : %g – %g\n", bp_min, bp_max))
+
+# 4c. Variance and SD for Income
+income_var <- var(nhanes$Income,  na.rm = TRUE) # No need to put na.rm = True, since we correct already misisng value sin our data
+income_sd  <- sd(nhanes$Income,   na.rm = TRUE) # No need to put na.rm = True, since we correct already misisng value sin our data
+cat(sprintf("Income variance        : %.4f\n", income_var))
+cat(sprintf("Income std deviation   : %.4f\n", income_sd))
+```
+
+# 6. Visualization the relationship between weight and height and coloration of the points by gender, diabetes and smoking status
+
+
+```{r}
+# Helper to make consistent scatter plots
+scatter_wh <- function(data, color_var, title_suffix, palette = NULL) {
+  p <- ggplot(data, aes(x = Height, y = Weight,
+                        color = .data[[color_var]])) +
+    geom_point(alpha = 0.45, size = 1.4) +
+    labs(
+      title    = paste("Weight vs Height —", title_suffix),
+      x        = "Height (cm)",
+      y        = "Weight (kg)",
+      color    = color_var,
+      caption  = "Source: CDC NHANES Dataset"
+    ) +
+    theme_nhanes +
+    theme(legend.position = "bottom")
+  
+  if (!is.null(palette)) {
+    p <- p + scale_color_manual(values = palette)
+  } else {
+    p <- p + scale_color_brewer(palette = "Set1", na.value = "grey70")
+  }
+  p
+}
+
+s1 <- scatter_wh(nhanes, "Gender",        "by Gender",
+                 c("female" = "#E91E63", "male" = "#1565C0",
+                   "Unknown" = "grey70"))
+
+s1
+
+s2 <- scatter_wh(nhanes, "Diabetes",      "by Diabetes Status",
+                 c("Yes" = "#F44336", "No" = "#43A047",
+                   "Unknown" = "grey70"))
+
+s2
+
+s3 <- scatter_wh(nhanes, "SmokingStatus", "by Smoking Status")
+
+s3
+
+scatter_combined <- (s1 | s2) / (s3 + plot_spacer()) +
+  plot_annotation(
+    title   = "NHANES — Weight vs Height",
+    theme   = theme(plot.title = element_text(face = "bold", size = 16))
+  )
+
+print(scatter_combined)
+ggsave("nhanes_scatter.png", scatter_combined, width = 14, height = 10, dpi = 150)
+cat("✔ Saved: nhanes_scatter.png\n")
+```
+
+
+#7. T-test between the following variables and  conclusions on the relationship between them based on P-Value
+
+
+## 7.1 Age and Gender
+
+```{r}
+# ── 6a. Age ~ Gender ─────────────────────────────────────────
+age_female <- nhanes$Age[nhanes$Gender == "female"]
+age_male   <- nhanes$Age[nhanes$Gender == "male"]
+
+ttest_age_gender <- t.test(age_female, age_male)
+cat("\n--- Age vs Gender ---\n")
+print(ttest_age_gender)
+cat(sprintf("Conclusion: p = %.4f → %s\n",
+            ttest_age_gender$p.value,
+            ifelse(ttest_age_gender$p.value < 0.05,
+                   "SIGNIFICANT difference in age between genders.",
+                   "NO significant difference in age between genders.")))
+```
+
+## 7.2 BMI and Diabetes
+
+```{r}
+# ── 6b. BMI ~ Diabetes ───────────────────────────────────────
+bmi_yes <- nhanes$BMI[nhanes$Diabetes == "Yes"]
+bmi_no  <- nhanes$BMI[nhanes$Diabetes == "No"]
+
+ttest_bmi_diabetes <- t.test(bmi_yes, bmi_no)
+cat("\n--- BMI vs Diabetes ---\n")
+print(ttest_bmi_diabetes)
+cat(sprintf("Conclusion: p = %.4e → %s\n",
+            ttest_bmi_diabetes$p.value,
+            ifelse(ttest_bmi_diabetes$p.value < 0.05,
+                   "SIGNIFICANT difference in BMI between diabetic and non-diabetic participants.",
+                   "NO significant difference in BMI between diabetic and non-diabetic participants.")))
+
+```
+
+
+## 7.3 Alcohol Year and Relationship Status
+
+```{r}
+# ── 6c. AlcoholYear ~ RelationshipStatus ─────────────────────
+# Use the two largest groups for a clean two-sample t-test
+rel_counts  <- sort(table(nhanes$RelationshipStatus), decreasing = TRUE)
+cat("\nRelationshipStatus counts:\n"); print(rel_counts)
+
+top2 <- names(rel_counts)[1:3]
+alc_g1 <- nhanes$AlcoholYear[nhanes$RelationshipStatus == top2[1]]
+alc_g2 <- nhanes$AlcoholYear[nhanes$RelationshipStatus == top2[3]]
+
+ttest_alc_rel <- t.test(alc_g1, alc_g2)
+cat(sprintf("\n--- AlcoholYear: '%s' vs '%s' ---\n", top2[1], top2[3]))
+print(ttest_alc_rel)
+cat(sprintf("Conclusion: p = %.4e → %s\n",
+            ttest_alc_rel$p.value,
+            ifelse(ttest_alc_rel$p.value < 0.05,
+                   paste0("SIGNIFICANT difference in yearly alcohol consumption between '",
+                          top2[1], "' and '", top2[3], "'."),
+                   paste0("NO significant difference in yearly alcohol consumption between '",
+                          top2[1], "' and '", top2[3], "'."))))
+```
+
 
 
 
